@@ -13,6 +13,7 @@ from ctypes import c_void_p, c_int
 from enum import Enum
 
 import usb.backend.libusb0
+import serial.tools.list_ports
 import usb.core  # pyusb
 import usb.util
 
@@ -210,6 +211,13 @@ class usb_class(DeviceClass):
     def flush(self):
         return
 
+    def find_serial_device(self, vid, pid):
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            if port.vid == vid and port.pid == pid:
+                return port.device
+        return None
+
     def connect(self, EP_IN=-1, EP_OUT=-1, portname: str = ""):
         if self.connected:
             self.close()
@@ -227,6 +235,10 @@ class usb_class(DeviceClass):
                     self.device = dev
                     self.vid = dev.idVendor
                     self.pid = dev.idProduct
+                    serial_device_path = self.find_serial_device(self.vid, self.pid)
+                    self.info(f"Serial device path: {serial_device_path}")
+                    if portname != "" and serial_device_path != portname:
+                        continue
                     self.serial_number = dev.serial_number
                     self.interface = usbid[2]
                     break
