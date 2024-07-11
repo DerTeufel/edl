@@ -405,6 +405,7 @@ class main(metaclass=LogBase):
                         return self.exit(1)
                 else:
                     return self.exit(1)
+            return self.exit(0)
 
 
 def run():
@@ -415,7 +416,6 @@ def run():
     except KeyboardInterrupt:
         print("\n[!] Exiting cleanly…")
         sys.exit(0)
-
 
 if __name__ == '__main__':
     run()

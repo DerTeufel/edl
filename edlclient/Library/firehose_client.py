@@ -936,6 +936,18 @@ class firehose_client(metaclass=LogBase):
             patch = options["<patch>"].split(",")
             for xml in rawprogram:
                 filename = os.path.join(imagedir, xml)
+                if not os.path.exists(filename):
+                    self.error(f"File : {filename} not found.")
+                    return False
+
+            for xml in patch:
+                filename = os.path.join(imagedir, xml)
+                if not os.path.exists(filename):
+                    self.error(f"File : {filename} not found.")
+                    return False
+
+            for xml in rawprogram:
+                filename = os.path.join(imagedir, xml)
                 if os.path.exists(filename):
                     self.info("[qfil] programming %s" % xml)
                     fl = open(filename, "r")
@@ -995,6 +1007,7 @@ class firehose_client(metaclass=LogBase):
             if bootable != -1:
                 if self.firehose.cmd_setbootablestoragedrive(bootable):
                     self.info("[qfil] partition({partition}) is now bootable\n".format(partition=bootable))
+                    return True
                 else:
                     self.info(
                         "[qfil] set partition({partition}) as bootable failed\n".format(partition=bootable))
