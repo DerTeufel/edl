@@ -265,7 +265,9 @@ class main(metaclass=LogBase):
             self.serial = False
         if args["--portname"]:
             self.portname = args["--portname"]
-            self.serial = True
+            # using serial class with port caused the tool to get stuck in readusb at 'val = epr(bytestoread)'
+            # modify usb class to compare the port if it is being set
+            #self.serial = True
         else:
             self.portname = ""
         if self.serial:
