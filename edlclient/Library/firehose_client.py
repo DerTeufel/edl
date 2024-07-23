@@ -931,6 +931,18 @@ class firehose_client(metaclass=LogBase):
             patch = options["<patch>"].split(",")
             for xml in rawprogram:
                 filename = os.path.join(imagedir, xml)
+                if not os.path.exists(filename):
+                    self.error(f"File : {filename} not found.")
+                    return False
+
+            for xml in patch:
+                filename = os.path.join(imagedir, xml)
+                if not os.path.exists(filename):
+                    self.error(f"File : {filename} not found.")
+                    return False
+
+            for xml in rawprogram:
+                filename = os.path.join(imagedir, xml)
                 if os.path.exists(filename):
                     self.info("[qfil] programming %s" % xml)
                     fl = open(filename, "r")
@@ -954,8 +966,6 @@ class firehose_client(metaclass=LogBase):
                                           f"@sector({start_sector})...")
 
                                 self.firehose.cmd_program(int(partition_number), int(start_sector), filename)
-                else:
-                    self.warning(f"File : {filename} not found.")
             self.info("[qfil] raw programming ok.")
 
             self.info("[qfil] patching...")
@@ -979,17 +989,18 @@ class firehose_client(metaclass=LogBase):
                                 content=content)
                             print(CMD)
                             self.firehose.xmlsend(CMD)
-                else:
-                    self.warning(f"File : {filename} not found.")
             self.info("[qfil] patching ok")
 
             bootable = self.find_bootable_partition(imagedir, rawprogram)
             if bootable != -1:
                 if self.firehose.cmd_setbootablestoragedrive(bootable):
                     self.info("[qfil] partition({partition}) is now bootable\n".format(partition=bootable))
+                    return True
                 else:
                     self.info(
                         "[qfil] set partition({partition}) as bootable failed\n".format(partition=bootable))
+                    return False
+            return True
 
         else:
             self.error("Unknown/Missing command, a command is required.")
