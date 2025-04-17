@@ -51,8 +51,8 @@ sudo apt purge ModemManager
 git clone https://github.com/bkerler/edl.git
 cd edl
 git submodule update --init --recursive
-sudo cp Drivers/51-edl.rules /etc/udev/rules.d
-sudo cp Drivers/50-android.rules /etc/udev/rules.d
+chmod +x ./install-linux-edl-drivers.sh
+bash ./install-linux-edl-drivers.sh
 python3 setup.py build
 sudo python3 setup.py install
 ```
@@ -71,11 +71,20 @@ sudo python3 setup.py install
 ```
 
 ### Windows:
+
+#### Method 1 - Automatic with PowerShell (Windows 10 and later)
+
+1.   Open PowerShell (Not CMD). To do that, right-click on the Windows start menu and select PowerShell or Terminal.
+2.   Copy and paste the code below and press enter
+```
+./install_edl_win10_win11.ps1
+```
+
+#### Method 2 - Manual
 #### Install python + git
 - Install python 3.9 and git
 - If you install python from microsoft store, "python setup.py install" will fail, but that step isn't required.
 - WIN+R ```cmd```
-
 
 #### Get latest UsbDk 64-Bit
 - Install normal QC 9008 Serial Port driver (or use default Windows COM Port one, make sure no exclamation is seen)
