@@ -263,6 +263,11 @@ class usb_class(DeviceClass):
         if self.configuration is None:
             self.error("Couldn't get device configuration.")
             return False
+        if not hasattr(self, 'interface'):
+            # pick the first alternate setting on the first interface
+            print("No interface specified, using fallback")
+            itf0 = self.configuration[(0,0)]
+            self.interface = itf0.bInterfaceNumber
         if self.interface > self.configuration.bNumInterfaces:
             print("Invalid interface, max number is %d" % self.configuration.bNumInterfaces)
             return False
