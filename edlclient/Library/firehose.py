@@ -20,8 +20,6 @@ from edlclient.Library.sparse import QCSparse
 from edlclient.Library.utils import *
 from edlclient.Library.utils import progress
 
-rq = Queue()
-
 
 def writedata(filename, rq):
     pos = 0
@@ -194,6 +192,7 @@ class firehose(metaclass=LogBase):
         self.luns = luns
         self.supported_functions = []
         self.lunsizes = {}
+        self.rq = Queue()
         self.info = self.__logger.info
         self.error = self.__logger.error
         self.debug = self.__logger.debug
@@ -630,7 +629,6 @@ class firehose(metaclass=LogBase):
         return True
 
     def cmd_read(self, physical_partition_number, start_sector, num_partition_sectors, filename, display=True):
-        global rq
         self.lasterror = b""
         progbar = progress(self.cfg.SECTOR_SIZE_IN_BYTES)
         if display:
@@ -656,7 +654,7 @@ class firehose(metaclass=LogBase):
             show_progress = progbar.show_progress
             usb_read = self.cdc.read
             progbar.show_progress(prefix="Read", pos=0, total=total, display=display)
-            worker = Thread(target=writedata, args=(filename, rq), daemon=True)
+            worker = Thread(target=writedata, args=(filename, self.rq), daemon=True)
             worker.start()
             while bytestoread > 0:
                 if self.cdc.is_serial:
@@ -666,10 +664,10 @@ class firehose(metaclass=LogBase):
                 size = min(maxsize, bytestoread)
                 data = usb_read(size)
                 if len(data) > 0:
-                    rq.put(data)
+                    self.rq.put(data)
                     bytestoread -= len(data)
                     show_progress(prefix="Read", pos=total - bytestoread, total=total, display=display)
-            rq.put(None)
+            self.rq.put(None)
             worker.join(60)
             self.cdc.xmlread = True
             wd = self.wait_for_data()
@@ -1677,8 +1675,12 @@ class firehose(metaclass=LogBase):
         if info:
             print_progress(0, 100, prefix='Progress:', suffix='Complete', bar_length=50)
         while True:
-            tmp = self.cdc.read(timeout=None)
-            if b'<response' in tmp or b"ERROR" in tmp:
+            received_data = self.cdc.read(timeout=None)
+            tmp = received_data
+            while tmp[-7:] != b"</data>" and len(received_data) > 0:
+                received_data = self.cdc.read(timeout=None)
+                tmp += received_data
+            if b'<response' in tmp or b"ERROR" in tmp or len(received_data) == 0:
                 break
             rdata = self.xml.getlog(tmp)[0].replace("0x", "").replace(" ", "")
             tmp2 = b""
@@ -1700,7 +1702,9 @@ class firehose(metaclass=LogBase):
 
         if wf is not None:
             wf.close()
-            if b'<response' in tmp and b'ACK' in tmp:
+            if (b'<response' in tmp and b'ACK' in tmp) or len(received_data) == 0:
+                if len(received_data) == 0:
+                    self.info(f"Warning: {dataread} bytes received, but expecting {SizeInBytes}!")
                 if info:
                     self.info(f"Bytes from {hex(address)}, bytes read {hex(dataread)}, written to {filename}.")
                 return True
