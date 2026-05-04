@@ -1013,7 +1013,6 @@ class firehose_client(metaclass=LogBase):
                         "[qfil] set partition({partition}) as bootable failed\n".format(partition=bootable))
                     success = False
             return success
-
         else:
             self.error("Unknown/Missing command, a command is required.")
             return False
