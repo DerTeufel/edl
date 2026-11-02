@@ -10,6 +10,7 @@ import binascii
 import json
 import os.path
 import platform
+import traceback
 from binascii import hexlify
 from queue import Queue
 from threading import Thread
@@ -497,26 +498,45 @@ class firehose(metaclass=LogBase):
             if self.modules is not None:
                 data += self.modules.addprogram()
             data += f"/>\n</data>"
+            # Ensure data is bytes before sending over USB
+            if isinstance(data, str):
+                data = data.encode('utf-8')
             rsp = self.xmlsend(data, self.skipresponse)
             progbar.show_progress(prefix="Write", pos=0, total=total, display=display)
             if rsp.resp:
-                while bytestowrite > 0:
-                    wlen = min(bytestowrite, self.cfg.MaxPayloadSizeToTargetInBytes)
+                try:
+                    while bytestowrite > 0:
+                        wlen = min(bytestowrite, self.cfg.MaxPayloadSizeToTargetInBytes)
 
-                    if sparseformat:
-                        wdata = sparse.read(wlen)
-                    else:
-                        wdata = rf.read(wlen)
-                    bytestowrite -= wlen
+                        if sparseformat:
+                            wdata = sparse.read(wlen)
+                        else:
+                            wdata = rf.read(wlen)
 
-                    if wlen % self.cfg.SECTOR_SIZE_IN_BYTES != 0:
-                        filllen = (wlen // self.cfg.SECTOR_SIZE_IN_BYTES * self.cfg.SECTOR_SIZE_IN_BYTES) + \
-                                  self.cfg.SECTOR_SIZE_IN_BYTES
-                        wdata += b"\x00" * (filllen - wlen)
+                        bytestowrite -= wlen
 
-                    self.cdc.write(wdata)
-                    progbar.show_progress(prefix="Write", pos=total - bytestowrite, total=total, display=display)
-                    self.cdc.write(b'')
+                        if wlen % self.cfg.SECTOR_SIZE_IN_BYTES != 0:
+                            filllen = (wlen // self.cfg.SECTOR_SIZE_IN_BYTES * self.cfg.SECTOR_SIZE_IN_BYTES) + \
+                                      self.cfg.SECTOR_SIZE_IN_BYTES
+
+                            # DEBUG: Check if wdata is incorrectly a string before concatenating
+                            if isinstance(wdata, str):
+                                print(f"\n[DEBUG] WARNING: wdata is a string! Converting to bytes...")
+                                wdata = wdata.encode('latin1') # Convert string back to raw bytes
+
+                            wdata += b"\x00" * (filllen - wlen)
+
+                        # DEBUG: Print exact types being passed to CDC
+                        # print(f"[DEBUG] self.cdc.write type is: {type(wdata)}")
+
+                        self.cdc.write(wdata)
+                        progbar.show_progress(prefix="Write", pos=total - bytestowrite, total=total, display=display)
+                        self.cdc.write(b'')
+
+                except Exception as e:
+                    print("\n[CRITICAL ERROR] The writing loop crashed! Traceback:")
+                    traceback.print_exc()
+                    return False
                 # time.sleep(0.2)
 
                 wd = self.wait_for_data()
